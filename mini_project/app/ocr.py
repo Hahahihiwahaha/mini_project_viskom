@@ -44,6 +44,19 @@ def _clean_cell(text: str) -> str:
     return "" if re.fullmatch(r"[-–—.]+", text) else text
 
 
+def _low_confidence_fields(lines: list[OCRLine], identitas: dict[str, str], anggota: list[dict[str, str]]) -> list[str]:
+    """Name values read from low-score OCR lines so the form can flag them."""
+    low = {_norm(line.text) for line in lines if line.score < 0.75}
+    fields = [key for key, value in identitas.items() if value and _norm(value) in low]
+    for index, member in enumerate(anggota, start=1):
+        fields.extend(
+            f"anggota_{index}.{key}"
+            for key, value in member.items()
+            if value and _norm(value) in low
+        )
+    return fields
+
+
 def _read_lines(image: np.ndarray) -> list[OCRLine]:
     result = _ocr_engine()(image)
     lines: list[OCRLine] = []
@@ -368,6 +381,7 @@ def read_kk_image(image_bytes: bytes) -> dict[str, Any]:
             "identitas": {}, "anggota": [{}],
             "notice": "Gambar tidak terbaca sebagai format gambar. Periksa kembali file.",
             "raw_text": "",
+            "check_fields": [],
         }
 
     try:
@@ -377,12 +391,14 @@ def read_kk_image(image_bytes: bytes) -> dict[str, Any]:
             "identitas": {}, "anggota": [{}],
             "notice": f"OCR gagal dijalankan ({type(exc).__name__}). Silakan isi data secara manual.",
             "raw_text": "",
+            "check_fields": [],
         }
     if not lines:
         return {
             "identitas": {}, "anggota": [{}],
             "notice": "Teks belum berhasil terbaca otomatis. Silakan isi atau koreksi data.",
             "raw_text": "",
+            "check_fields": [],
         }
     identitas = _extract_header(lines)
     anggota = _extract_members(lines, image.shape[0]) or [{}]
@@ -394,4 +410,5 @@ def read_kk_image(image_bytes: bytes) -> dict[str, Any]:
         "anggota": anggota,
         "notice": f"OCR lokal menemukan sekitar {extracted} nilai. Periksa kembali karena hasil pembacaan bisa keliru.",
         "raw_text": "\n".join(line.text for line in lines),
+        "check_fields": _low_confidence_fields(lines, identitas, anggota),
     }

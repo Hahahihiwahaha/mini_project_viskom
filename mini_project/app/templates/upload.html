@@ -1,12 +1,43 @@
 {% extends "base.html" %}
 {% block title %}Input KK · Pendataan KK{% endblock %}
 {% block content %}
-<div class="page-heading"><div><span class="eyebrow">LANGKAH 1 DARI 2</span><h1>Input Kartu Keluarga</h1><p>Unggah foto atau scan yang terbaca jelas. Kamu akan dapat memeriksa hasilnya sebelum disimpan.</p></div></div>
-<div class="steps"><span class="active"><b>1</b> Unggah gambar</span><i></i><span><b>2</b> Konfirmasi data</span></div>
+<div class="page-heading"><div><h1>Input Kartu Keluarga</h1><p>Unggah foto atau scan yang terbaca jelas. Kamu akan dapat memeriksa hasilnya sebelum disimpan.</p></div></div>
+<div class="steps"><span class="active"><b>1</b> Unggah gambar</span><i></i><span><b>2</b> Konfirmasi data</span><i></i><span><b>3</b> Selesai</span></div>
 {% if error %}<div class="alert error">{{ error }}</div>{% endif %}
-<form class="upload-card" action="/upload" method="post" enctype="multipart/form-data">
-  <label class="dropzone" for="image"><span class="upload-icon">↑</span><strong>Pilih gambar KK</strong><span>JPG, PNG, atau WebP · maksimal 8 MB</span><span class="button secondary">Pilih file</span><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" required></label>
-  <div class="privacy-note"><span>ⓘ</span><p>Gambar diproses sementara untuk membuat draft. Data hanya masuk ke database setelah kamu menekan Simpan.</p></div>
-  <button class="button primary" type="submit">Lanjut ke konfirmasi <span>→</span></button>
+<form class="upload-card" id="upload-form" action="/upload" method="post" enctype="multipart/form-data">
+  <label class="dropzone" for="image"><span class="upload-icon">↑</span><strong>Pilih gambar KK</strong><span>JPG, PNG, atau WebP · maksimal 8 MB</span><span class="button secondary">Pilih file</span><img class="upload-preview" id="preview" alt="Pratinjau gambar KK" hidden><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+  <p class="file-name" id="file-name" aria-live="polite"></p>
+  <button class="button primary" type="submit">Lanjut ke konfirmasi</button>
+  <div class="upload-loading" id="upload-loading" hidden><span class="spinner"></span><strong>Membaca kartu keluarga…</strong><small>OCR berjalan beberapa detik. Jangan tutup halaman.</small></div>
 </form>
+{% endblock %}
+{% block scripts %}
+<script>
+  let previewUrl = '';
+  document.getElementById('image').addEventListener('change', event => {
+    const file = event.target.files[0];
+    const preview = document.getElementById('preview');
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = '';
+    const dropzone = document.querySelector('.dropzone');
+    if (file) {
+      previewUrl = URL.createObjectURL(file);
+      preview.src = previewUrl;
+      preview.hidden = false;
+      dropzone.classList.add('has-file');
+      document.getElementById('file-name').textContent = 'Pastikan preview gambar adalah kartu keluarga';
+    } else {
+      preview.removeAttribute('src');
+      preview.hidden = true;
+      dropzone.classList.remove('has-file');
+      document.getElementById('file-name').textContent = '';
+    }
+  });
+  document.getElementById('upload-form').addEventListener('submit', () => {
+    const button = document.querySelector('#upload-form button[type="submit"]');
+    button.disabled = true;
+    button.textContent = 'Memproses…';
+    document.getElementById('upload-loading').hidden = false;
+  });
+</script>
 {% endblock %}

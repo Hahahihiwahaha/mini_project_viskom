@@ -4,15 +4,25 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Pendataan KK{% endblock %}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css">
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/kk"><span class="brand-mark">KK</span><span>Pendataan Keluarga<small>OCR Kartu Keluarga</small></span></a>
-    <nav><a href="/kk">Daftar KK</a><a class="nav-button" href="/upload">+ Input KK</a></nav>
-  </header>
-  <main class="container">{% block content %}{% endblock %}</main>
-  <footer>Prototype lokal · Periksa dan koreksi data sebelum disimpan</footer>
+  <div class="app">
+    <aside class="sidebar">
+      <a class="brand" href="/kk"><img class="brand-logo" src="/static/kk-mate-logo.svg" alt="kk-mate"></a>
+      <nav>
+        <a class="nav-item {% if request.url.path.startswith('/kk') %}active{% endif %}" href="/kk"><i class="fa-solid fa-address-book"></i> Daftar KK</a>
+        <a class="nav-item {% if request.url.path == '/upload' %}active{% endif %}" href="/upload"><i class="fa-solid fa-file-circle-plus"></i> Input KK</a>
+      </nav>
+    </aside>
+    <div class="main">
+      <main class="container">{% block content %}{% endblock %}</main>
+    </div>
+  </div>
   {% block scripts %}{% endblock %}
 </body>
 </html>

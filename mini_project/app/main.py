@@ -1,6 +1,9 @@
 import base64
+import json
+import time
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import HTMLResponse, RedirectResponse
@@ -14,15 +17,49 @@ from . import models
 from .database import Base, engine, get_db
 from .ocr import read_kk_image
 
-BASE_DIR = __import__("pathlib").Path(__file__).resolve().parent.parent
+BASE_DIR = Path(__file__).resolve().parent.parent
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "templates"))
 pending_drafts: dict[str, dict] = {}
+DRAFT_DIR = BASE_DIR / "data" / "drafts"
+DRAFT_TTL = 24 * 60 * 60
 ALLOWED_TYPES = {"image/jpeg", "image/png", "image/webp"}
 MAX_UPLOAD_BYTES = 8 * 1024 * 1024
 
 
+def _draft_path(draft_id: str) -> Path:
+    return DRAFT_DIR / f"{draft_id}.json"
+
+
+def _save_draft(draft_id: str, draft: dict) -> None:
+    DRAFT_DIR.mkdir(parents=True, exist_ok=True)
+    _draft_path(draft_id).write_text(
+        json.dumps({"created_at": time.time(), "draft": draft}), encoding="utf-8"
+    )
+    pending_drafts[draft_id] = draft
+
+
+def _load_drafts() -> None:
+    DRAFT_DIR.mkdir(parents=True, exist_ok=True)
+    for path in DRAFT_DIR.glob("*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            path.unlink(missing_ok=True)
+            continue
+        if time.time() - payload.get("created_at", 0) > DRAFT_TTL:
+            path.unlink(missing_ok=True)
+            continue
+        pending_drafts[path.stem] = payload["draft"]
+
+
+def _delete_draft(draft_id: str) -> None:
+    pending_drafts.pop(draft_id, None)
+    _draft_path(draft_id).unlink(missing_ok=True)
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    _load_drafts()
     Base.metadata.create_all(bind=engine)
     # create_all creates missing tables but does not add fields to an existing
     # SQLite database; keep this tiny migration so existing student data stays.
@@ -76,16 +113,17 @@ async def upload_image(request: Request, image: UploadFile = File(...)):
 
     draft = read_kk_image(content)
     draft_id = uuid.uuid4().hex
-    pending_drafts[draft_id] = {
+    _save_draft(draft_id, {
         "image_data": base64.b64encode(content).decode("ascii"),
         "image_type": image.content_type,
         **draft,
-    }
+    })
     return page(request, "confirm.html", draft_id=draft_id, **pending_drafts[draft_id])
 
 
 @app.post("/confirm")
 async def confirm_data(
+    request: Request,
     draft_id: str = Form(...),
     nomor_kk: str = Form(""), nama_kepala_keluarga: str = Form(""), alamat: str = Form(""), rt: str = Form(""),
     rw: str = Form(""), kode_pos: str = Form(""), desa_kelurahan: str = Form(""),
@@ -104,12 +142,14 @@ async def confirm_data(
     if not clean(nomor_kk):
         raise HTTPException(status_code=422, detail="Nomor KK wajib diisi.")
 
-    identitas = models.IdentitasKK(
-        nomor_kk=clean(nomor_kk), nama_kepala_keluarga=clean(nama_kepala_keluarga),
-        alamat=clean(alamat), rt=clean(rt), rw=clean(rw),
-        kode_pos=clean(kode_pos), desa_kelurahan=clean(desa_kelurahan),
-        kecamatan=clean(kecamatan), kabupaten_kota=clean(kabupaten_kota), provinsi=clean(provinsi),
-    )
+    identitas_values = {
+        "nomor_kk": clean(nomor_kk), "nama_kepala_keluarga": clean(nama_kepala_keluarga),
+        "alamat": clean(alamat), "rt": clean(rt), "rw": clean(rw),
+        "kode_pos": clean(kode_pos), "desa_kelurahan": clean(desa_kelurahan),
+        "kecamatan": clean(kecamatan), "kabupaten_kota": clean(kabupaten_kota),
+        "provinsi": clean(provinsi),
+    }
+    identitas = models.IdentitasKK(**identitas_values)
     member_fields = {
         "nik": nik, "nama_lengkap": nama_lengkap, "jenis_kelamin": jenis_kelamin,
         "tempat_lahir": tempat_lahir, "tanggal_lahir": tanggal_lahir, "agama": agama,
@@ -120,8 +160,10 @@ async def confirm_data(
         "no_kitas_kitap": no_kitas_kitap, "nama_ayah": nama_ayah, "nama_ibu": nama_ibu,
     }
     count = max((len(values) for values in member_fields.values()), default=0)
+    submitted_members = []
     for i in range(count):
         data = {field: clean(values[i]) if i < len(values) else "" for field, values in member_fields.items()}
+        submitted_members.append(data)
         if any(data.values()):
             identitas.anggota.append(models.AnggotaKeluargaKK(**data))
     db.add(identitas)
@@ -129,8 +171,16 @@ async def confirm_data(
         db.commit()
     except IntegrityError:
         db.rollback()
-        raise HTTPException(status_code=409, detail="Nomor KK tersebut sudah terdaftar.")
-    pending_drafts.pop(draft_id, None)
+        draft = pending_drafts[draft_id]
+        return page(
+            request, "confirm.html", draft_id=draft_id,
+            error="Nomor KK tersebut sudah terdaftar.",
+            identitas=identitas_values, anggota=submitted_members,
+            notice=draft.get("notice", ""), raw_text=draft.get("raw_text", ""),
+            image_type=draft["image_type"], image_data=draft["image_data"],
+            check_fields=draft.get("check_fields", []),
+        )
+    _delete_draft(draft_id)
     return RedirectResponse(f"/kk/{identitas.id}?saved=1", status_code=303)
 
 
@@ -139,7 +189,11 @@ def kk_list(request: Request, q: str = "", db: Session = Depends(get_db)):
     stmt = select(models.IdentitasKK).options(selectinload(models.IdentitasKK.anggota))
     if clean(q):
         term = f"%{clean(q)}%"
-        stmt = stmt.where(or_(models.IdentitasKK.nomor_kk.like(term), models.IdentitasKK.alamat.like(term)))
+        stmt = stmt.where(or_(
+        models.IdentitasKK.nomor_kk.like(term),
+        models.IdentitasKK.nama_kepala_keluarga.like(term),
+        models.IdentitasKK.alamat.like(term),
+    ))
     rows = db.scalars(stmt.order_by(models.IdentitasKK.updated_at.desc())).all()
     return page(request, "list.html", rows=rows, q=q)
 
