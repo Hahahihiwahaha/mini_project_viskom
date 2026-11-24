@@ -1,0 +1,18 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}Pendataan KK{% endblock %}</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/kk"><span class="brand-mark">KK</span><span>Pendataan Keluarga<small>OCR Kartu Keluarga</small></span></a>
+    <nav><a href="/kk">Daftar KK</a><a class="nav-button" href="/upload">+ Input KK</a></nav>
+  </header>
+  <main class="container">{% block content %}{% endblock %}</main>
+  <footer>Prototype lokal · Periksa dan koreksi data sebelum disimpan</footer>
+  {% block scripts %}{% endblock %}
+</body>
+</html>

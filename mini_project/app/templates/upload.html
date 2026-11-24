@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Input KK · Pendataan KK{% endblock %}
+{% block content %}
+<div class="page-heading"><div><span class="eyebrow">LANGKAH 1 DARI 2</span><h1>Input Kartu Keluarga</h1><p>Unggah foto atau scan yang terbaca jelas. Kamu akan dapat memeriksa hasilnya sebelum disimpan.</p></div></div>
+<div class="steps"><span class="active"><b>1</b> Unggah gambar</span><i></i><span><b>2</b> Konfirmasi data</span></div>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
+<form class="upload-card" action="/upload" method="post" enctype="multipart/form-data">
+  <label class="dropzone" for="image"><span class="upload-icon">↑</span><strong>Pilih gambar KK</strong><span>JPG, PNG, atau WebP · maksimal 8 MB</span><span class="button secondary">Pilih file</span><input id="image" name="image" type="file" accept="image/jpeg,image/png,image/webp" required></label>
+  <div class="privacy-note"><span>ⓘ</span><p>Gambar diproses sementara untuk membuat draft. Data hanya masuk ke database setelah kamu menekan Simpan.</p></div>
+  <button class="button primary" type="submit">Lanjut ke konfirmasi <span>→</span></button>
+</form>
+{% endblock %}
