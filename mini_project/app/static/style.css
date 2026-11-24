@@ -91,7 +91,7 @@ body { margin: 0; min-height: 100vh; }
 .text-link { font-size: 12px; color: var(--orange-dark); text-decoration: none; font-weight: 500; }
 .text-link:hover { text-decoration: underline; }
 
-.steps { display: flex; align-items: center; gap: 12px; margin: 0 0 24px; color: #8a959d; font-size: 12px; }
+.steps { display: flex; align-items: center; justify-content: center; gap: 12px; margin: 0 0 24px; color: #8a959d; font-size: 12px; }
 .steps span { display: flex; align-items: center; gap: 8px; }
 .steps b { height: 22px; width: 22px; border-radius: 50%; display: grid; place-items: center; background: #e9edf0; font-size: 11px; font-weight: 600; }
 .steps .active { color: var(--orange-dark); font-weight: 600; }
