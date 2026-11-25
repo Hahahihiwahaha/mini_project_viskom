@@ -1,10 +1,3 @@
-"""Local OCR for KK uploads, with a conservative editable-field parser.
-
-The Roboflow dataset model is still useful for locating field regions, but its
-hosted inference needs credentials. This first local pass reads the complete
-image and pre-fills values that can be identified from text and table position.
-"""
-
 from dataclasses import dataclass
 import re
 from typing import Any
@@ -37,7 +30,6 @@ def _norm(text: str) -> str:
 
 
 def _clean_cell(text: str) -> str:
-    """Strip column reference markers such as (11) from OCR values."""
     text = re.sub(r"\(\s*\d{1,2}\s*\)", " ", text)
     text = re.sub(r"\[\s*\d{1,2}\s*\]", " ", text)
     text = re.sub(r"\s+", " ", text).strip(" :;|,.-")
@@ -45,7 +37,6 @@ def _clean_cell(text: str) -> str:
 
 
 def _low_confidence_fields(lines: list[OCRLine], identitas: dict[str, str], anggota: list[dict[str, str]]) -> list[str]:
-    """Name values read from low-score OCR lines so the form can flag them."""
     low = {_norm(line.text) for line in lines if line.score < 0.75}
     fields = [key for key, value in identitas.items() if value and _norm(value) in low]
     for index, member in enumerate(anggota, start=1):
@@ -102,9 +93,6 @@ def _extract_labeled_values(lines: list[OCRLine]) -> dict[str, str]:
         re.IGNORECASE,
     )
     values: dict[str, str] = {}
-    # KK headers put several label/value pairs on the same horizontal line.
-    # Split a row at every recognized label so the next field's label/value
-    # cannot leak into the preceding field (the bug in the earlier parser).
     for row in _group_rows(lines, 1000):
         row_text = " ".join(line.text for line in row)
         matches = list(label_regex.finditer(row_text))
@@ -122,7 +110,6 @@ def _extract_labeled_values(lines: list[OCRLine]) -> dict[str, str]:
 def _extract_header(lines: list[OCRLine]) -> dict[str, str]:
     labeled = _extract_labeled_values(lines)
     kk_number = ""
-    # Prefer a 16-digit value read close to the visible NO. KK label.
     for i, line in enumerate(lines):
         if "kk" in _norm(line.text) and any(word in _norm(line.text) for word in ("no", "nomor")):
             nearby = " ".join(item.text for item in lines if abs(item.y - line.y) < 0.035)
@@ -217,8 +204,6 @@ def _extract_members_inferred_rows(lines: list[OCRLine], image_height: int) -> l
     rows = _group_rows(lines, image_height)
     top_header_y = _header_row_y(rows, ("nama lengkap", "nik", "jenis kelamin", "tempat lahir", "tanggal lahir", "pendidikan"))
     bottom_header_y = _header_row_y(rows, ("status perkawinan", "status hubungan", "kewarganegaraan", "dokumen imigrasi", "ayah", "ibu"))
-    # KK print layout has two aligned tables. Row numbers pair upper personal
-    # data with lower marital/status/document/parent fields.
     top_edges = (0.0, 0.031, 0.228, 0.318, 0.378, 0.524, 0.576, 0.645, 0.822, 1.01)
     bottom_edges = (0.0, 0.032, 0.139, 0.251, 0.356, 0.483, 0.576, 0.775, 1.01)
     top = _table_rows(lines, rows, top_header_y, bottom_header_y, top_edges)
@@ -276,14 +261,11 @@ def _read_cells(lines: list[OCRLine], y: float, edges: tuple[float, ...], tolera
 
 
 def _extract_members(lines: list[OCRLine], image_height: int) -> list[dict[str, str]]:
-    """Read the two printed member tables and pair their rows by position."""
     rows = _group_rows(lines, image_height)
     top_header_y = _header_row_y(rows, ("nama lengkap", "nik", "jenis kelamin", "tempat lahir", "tanggal lahir", "pendidikan"))
     if top_header_y is None:
         return []
 
-    # On this KK layout, the lower table begins at the first status/document
-    # header. Its data rows repeat the same 1..10 sequence as the upper table.
     lower_header_lines = [
         line for line in lines
         if 0.44 < line.y < 0.61
@@ -296,8 +278,6 @@ def _extract_members(lines: list[OCRLine], image_height: int) -> list[dict[str, 
     top_min = top_header_y + 0.02
     top_max = lower_header_y - 0.02
 
-    # Name rows are a reliable anchor even when the tiny printed row numbers
-    # themselves are missed by OCR. Pure numbers/header labels are discarded.
     upper_positions = _candidate_positions(
         lines,
         lambda line: 0.035 <= line.x < 0.228
@@ -316,8 +296,6 @@ def _extract_members(lines: list[OCRLine], image_height: int) -> list[dict[str, 
             top_max,
         )
 
-    # Values in the first column of the lower table (e.g. KAWIN) anchor each
-    # lower row; then row 1 is paired with upper row 1, row 2 with row 2, etc.
     lower_positions = _candidate_positions(
         lines,
         lambda line: 0.035 <= line.x < 0.139
@@ -373,7 +351,6 @@ def _extract_members(lines: list[OCRLine], image_height: int) -> list[dict[str, 
 
 
 def read_kk_image(image_bytes: bytes) -> dict[str, Any]:
-    """OCR an uploaded KK and return best-effort editable form values."""
     encoded = np.frombuffer(image_bytes, dtype=np.uint8)
     image = cv2.imdecode(encoded, cv2.IMREAD_COLOR)
     if image is None:
