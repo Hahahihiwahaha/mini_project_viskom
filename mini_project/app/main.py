@@ -61,8 +61,6 @@ def _delete_draft(draft_id: str) -> None:
 async def lifespan(_app: FastAPI):
     _load_drafts()
     Base.metadata.create_all(bind=engine)
-    # create_all creates missing tables but does not add fields to an existing
-    # SQLite database; keep this tiny migration so existing student data stays.
     migrations = {
         "tbl_identitasKK": {"nama_kepala_keluarga": "VARCHAR(150) NOT NULL DEFAULT ''"},
         "tbl_anggotaKeluargaKK": {
