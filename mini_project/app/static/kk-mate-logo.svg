@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 200" width="640" height="200" role="img" aria-label="kk-mate">
+  <title>kk-mate</title>
+  <g transform="translate(10,0)">
+    <rect x="0" y="0" width="200" height="200" rx="44" fill="#F6821F"/>
+    <g fill="none" stroke="#FFFFFF" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M34 56 V46 a12 12 0 0 1 12-12 H56"/>
+      <path d="M144 34 H154 a12 12 0 0 1 12 12 V56"/>
+      <path d="M166 144 V154 a12 12 0 0 1-12 12 H144"/>
+      <path d="M56 166 H46 a12 12 0 0 1-12-12 V144"/>
+    </g>
+    <rect x="52" y="66" width="96" height="68" rx="9" fill="#FFFFFF"/>
+    <circle cx="74" cy="90" r="9" fill="#F6821F"/>
+    <path d="M58 120 a16 16 0 0 1 32 0 z" fill="#F6821F"/>
+    <circle cx="96" cy="98" r="6.5" fill="#F6821F"/>
+    <path d="M85 120 a11 11 0 0 1 22 0 z" fill="#F6821F"/>
+    <rect x="114" y="84" width="24" height="5" rx="2.5" fill="#F6821F"/>
+    <rect x="114" y="96" width="24" height="5" rx="2.5" fill="#F6821F" opacity="0.7"/>
+    <rect x="114" y="108" width="15" height="5" rx="2.5" fill="#F6821F" opacity="0.5"/>
+  </g>
+  <text x="240" y="114" font-family="Poppins, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="86" font-weight="700" letter-spacing="-2">
+    <tspan fill="#F6821F">kk</tspan><tspan fill="#2B2B2B">-mate</tspan>
+  </text>
+  <text x="244" y="152" font-family="Poppins, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="25" font-weight="500" letter-spacing="0.5" fill="#6B6B6B">Your safest KK scanner</text>
+</svg>

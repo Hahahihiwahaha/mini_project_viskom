@@ -1,15 +1,16 @@
 {% extends "base.html" %}
 {% block title %}Konfirmasi data · Pendataan KK{% endblock %}
 {% block content %}
-<div class="page-heading"><div><span class="eyebrow">LANGKAH 2 DARI 2</span><h1>Periksa hasil pembacaan</h1><p>Pastikan semua data sesuai dengan dokumen sebelum menyimpan.</p></div><a class="text-link" href="/upload">← Ganti gambar</a></div>
-<div class="steps"><span class="done"><b>✓</b> Unggah gambar</span><i></i><span class="active"><b>2</b> Konfirmasi data</span></div>
+<div class="page-heading"><div><h1>Periksa hasil pembacaan</h1><p>Pastikan semua data sesuai dengan dokumen sebelum menyimpan.</p></div><a class="text-link" href="/upload">Ganti gambar</a></div>
+<div class="steps"><span class="done"><b>✓</b> Unggah gambar</span><i></i><span class="active"><b>2</b> Konfirmasi data</span><i></i><span><b>3</b> Selesai</span></div>
+{% if error %}<div class="alert error">{{ error }}</div>{% endif %}
 <div class="alert info">{{ notice }}</div>
 {% if raw_text %}<details class="ocr-text"><summary>Lihat teks mentah hasil OCR</summary><pre>{{ raw_text }}</pre></details>{% endif %}
 <form action="/confirm" method="post" id="confirm-form">
   <input type="hidden" name="draft_id" value="{{ draft_id }}">
   <section class="content-grid">
     <div class="form-stack">
-      <div class="panel"><div class="panel-heading"><div><span class="eyebrow">DATA DOKUMEN</span><h2>Identitas KK</h2></div></div>
+      <div class="panel"><div class="panel-heading"><div><span class="eyebrow">Data dokumen</span><h2>Identitas KK</h2></div></div>
         <div class="field-grid">
           <label class="field span-2">Nomor KK <em>*</em><input name="nomor_kk" maxlength="16" required placeholder="16 digit nomor KK" value="{{ identitas.get('nomor_kk', '') }}"></label>
           <label class="field span-2">Nama kepala keluarga<input name="nama_kepala_keluarga" value="{{ identitas.get('nama_kepala_keluarga', '') }}"></label>
@@ -20,7 +21,7 @@
           <label class="field">Kode Pos<input name="kode_pos" value="{{ identitas.get('kode_pos', '') }}"></label>
         </div>
       </div>
-      <div class="panel"><div class="panel-heading"><div><span class="eyebrow">DATA DOKUMEN</span><h2>Anggota keluarga</h2></div><button class="button secondary small" type="button" id="add-member">+ Tambah anggota</button></div>
+      <div class="panel"><div class="panel-heading"><div><span class="eyebrow">Data dokumen</span><h2>Anggota keluarga</h2></div><button class="button secondary small" type="button" id="add-member">+ Tambah anggota</button></div>
         <div id="members">
           {% for member in anggota %}<fieldset class="member-form"><legend>Anggota {{ loop.index }}</legend><button class="remove-member" type="button" aria-label="Hapus anggota" title="Hapus anggota">×</button>
             <div class="field-grid">
@@ -40,14 +41,35 @@
           </fieldset>{% endfor %}
         </div>
       </div>
-      <div class="form-actions"><a class="button secondary" href="/upload">Batal</a><button class="button primary" type="submit">Simpan data KK <span>→</span></button></div>
+      <div class="form-actions"><a class="button secondary" href="/upload">Batal</a><button class="button primary" type="submit">Simpan data KK</button></div>
     </div>
-    <aside class="panel preview-panel"><div class="panel-heading"><div><span class="eyebrow">DOKUMEN SUMBER</span><h2>Pratinjau gambar</h2></div></div><img class="preview-image" src="data:{{ image_type }};base64,{{ image_data }}" alt="Pratinjau KK"><p class="muted small-text">Cocokkan isian dengan dokumen asli.</p></aside>
+    <aside class="panel preview-panel"><div class="panel-heading"><div><span class="eyebrow">Dokumen sumber</span><h2>Pratinjau gambar</h2></div></div><img class="preview-image" src="data:{{ image_type }};base64,{{ image_data }}" alt="Pratinjau KK"><p class="muted small-text">Cocokkan isian dengan dokumen asli.</p></aside>
   </section>
 </form>
+<div class="lightbox" id="lightbox" role="dialog" aria-label="Pratinjau KK diperbesar" hidden>
+  <button class="lightbox-close" id="lightbox-close" type="button" aria-label="Tutup pratinjau">×</button>
+  <img id="lightbox-image" alt="Pratinjau KK diperbesar">
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
+const checkFields = {{ check_fields|default([])|tojson }};
+if (Array.isArray(checkFields)) {
+  const panels = document.querySelectorAll('.form-stack > .panel');
+  checkFields.forEach(name => {
+    const [scope, key] = name.split('.');
+    const field = scope.startsWith('anggota_')
+      ? panels[1]?.querySelectorAll('.member-form')[Number(scope.split('_')[1]) - 1]?.querySelector(`[name="${key}"]`)
+      : panels[0]?.querySelector(`[name="${name}"]`);
+    if (!field) return;
+    const label = field.closest('.field');
+    label.classList.add('needs-check');
+    const badge = document.createElement('span');
+    badge.className = 'check-badge';
+    badge.textContent = 'perlu dicek';
+    label.appendChild(badge);
+  });
+}
 const members = document.getElementById('members');
 document.getElementById('add-member').addEventListener('click', () => {
   const clone = members.querySelector('.member-form').cloneNode(true);
@@ -62,5 +84,15 @@ members.addEventListener('click', event => {
     [...members.children].forEach((node, i) => node.querySelector('legend').textContent = `Anggota ${i + 1}`);
   }
 });
+const lightbox = document.getElementById('lightbox');
+const lightboxImage = document.getElementById('lightbox-image');
+const closeLightbox = () => { lightbox.hidden = true; lightboxImage.removeAttribute('src'); };
+document.querySelector('.preview-image').addEventListener('click', event => {
+  lightboxImage.src = event.currentTarget.src;
+  lightbox.hidden = false;
+});
+document.getElementById('lightbox-close').addEventListener('click', closeLightbox);
+lightbox.addEventListener('click', event => { if (event.target === lightbox) closeLightbox(); });
+document.addEventListener('keydown', event => { if (event.key === 'Escape' && !lightbox.hidden) closeLightbox(); });
 </script>
 {% endblock %}

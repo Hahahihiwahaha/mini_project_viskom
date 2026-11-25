@@ -55,7 +55,7 @@ python -m pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
 
-Buka `http://127.0.0.1:8000`. Database SQLite dibuat otomatis di `data/kartu_keluarga.db` saat aplikasi pertama berjalan. Upload menjalankan OCR lokal dan mengisi field yang berhasil dikenali ke form konfirmasi. Draft upload disimpan sementara di memori proses dan hilang ketika server dimulai ulang.
+Buka `http://127.0.0.1:8000`. Database SQLite dibuat otomatis di `data/kartu_keluarga.db` saat aplikasi pertama berjalan. Upload menjalankan OCR lokal dan mengisi field yang berhasil dikenali ke form konfirmasi. Draft upload disimpan sementara di `data/drafts/` dan kedaluwarsa setelah 24 jam, sehingga tetap ada kalau server dimulai ulang. Field yang dibaca OCR dengan keyakinan rendah ditandai "perlu dicek" di form konfirmasi.
 
 ## Status prototipe
 
